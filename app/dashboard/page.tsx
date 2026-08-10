@@ -258,7 +258,7 @@ export default function DashboardPage() {
               </div>
 
               <h2 className="mt-5 text-4xl font-bold tracking-tight">
-                Olá, {profile?.name}! 👋
+                Olá, {profile?.name}
               </h2>
 
               <p className="mt-2 text-zinc-400">
@@ -284,49 +284,8 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <MetricCard
-              icon={Weight}
-              title="Peso atual"
-              value={`${profile?.weight} kg`}
-              subtitle="+2,1 kg este mês"
-              accent="text-blue-400"
-            />
 
-            <MetricCard
-              icon={Target}
-              title="Meta"
-              value="75 kg"
-              subtitle={`Objetivo: ${profile?.goal}`}
-              accent="text-cyan-400"
-            />
-
-            <MetricCard
-              icon={Activity}
-              title="Recuperação"
-              value={`${getRecoveryScore()}`}
-              subtitle="Sleep score estimado"
-              accent="text-green-400"
-            />
-
-            <MetricCard
-              icon={CalendarDays}
-              title="Consistência"
-              value="12 dias"
-              subtitle="Sequência ativa"
-              accent="text-purple-400"
-            />
-
-            <MetricCard
-              icon={Dumbbell}
-              title="Treinos/semana"
-              value={`${getTrainingDaysCount()} dias`}
-              subtitle={profile?.training_location}
-              accent="text-orange-400"
-            />
-          </div>
-
-          <div className="mt-6 grid gap-6 xl:grid-cols-4">
+          <div className="mt-8 grid gap-6 xl:grid-cols-4">
             <HoverCard className="p-6 xl:col-span-1">
               <p className="text-sm text-zinc-500">Treino de hoje</p>
               <h3 className="mt-3 text-3xl font-bold">{getTodayWorkout()}</h3>
