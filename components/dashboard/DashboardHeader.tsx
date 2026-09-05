@@ -1,69 +1,105 @@
 "use client";
 
-import {
-  Bell,
-  CalendarDays,
-  ChevronDown,
-  Clock3,
-  Sparkles,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, ChevronDown, Flame } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface DashboardHeaderProps {
   userName?: string;
   streak?: number;
-  todayLabel?: string;
 }
 
 export default function DashboardHeader({
-  userName = "Lucas",
+  userName,
   streak = 7,
-  todayLabel = "Quinta-feira, 27 de agosto",
 }: DashboardHeaderProps) {
-  const firstName = userName.split(" ")[0];
+  const [name, setName] = useState(userName || "");
+  const [todayLabel, setTodayLabel] = useState("");
+
+  useEffect(() => {
+    async function loadProfile() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("PROFILE HEADER ERROR:", error);
+        return;
+      }
+
+      if (profile?.name) {
+        setName(profile.name);
+      }
+    }
+
+    loadProfile();
+
+    const now = new Date();
+
+    const formattedDate = new Intl.DateTimeFormat("pt-BR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(now);
+
+    setTodayLabel(
+      formattedDate.charAt(0).toUpperCase() +
+        formattedDate.slice(1)
+    );
+  }, []);
+
+  const firstName = name
+    ? name.split(" ")[0]
+    : "atleta";
 
   return (
     <header className="relative overflow-hidden border-b border-white/[0.06]">
       {/* =========================================================
-          HEADER AMBIENT
+          AMBIENT LIGHT
       ========================================================= */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* Main blue glow */}
         <div
           className="
             absolute
-            left-[18%]
-            top-[-220px]
-            h-[420px]
-            w-[620px]
+            left-[12%]
+            top-[-240px]
+            h-[440px]
+            w-[650px]
             rounded-full
             bg-blue-600/[0.045]
-            blur-[120px]
+            blur-[130px]
           "
         />
 
-        {/* Secondary cyan glow */}
         <div
           className="
             absolute
-            right-[10%]
-            top-[-190px]
-            h-[340px]
-            w-[460px]
+            right-[5%]
+            top-[-180px]
+            h-[350px]
+            w-[500px]
             rounded-full
             bg-cyan-400/[0.018]
             blur-[120px]
           "
         />
 
-        {/* Soft fade */}
         <div
           className="
             absolute
             inset-x-0
             top-0
-            h-24
+            h-32
             bg-gradient-to-b
-            from-blue-500/[0.015]
+            from-blue-500/[0.012]
             to-transparent
           "
         />
@@ -72,59 +108,89 @@ export default function DashboardHeader({
       {/* =========================================================
           HEADER CONTENT
       ========================================================= */}
-      <div className="relative mx-auto max-w-[1500px] px-5 py-6 sm:px-7 lg:px-10 lg:py-7">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+      <div
+        className="
+          relative
+          mx-auto
+          max-w-[1500px]
+          px-5
+          py-7
+          sm:px-7
+          lg:px-10
+          lg:py-8
+        "
+      >
+        <div className="flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
           {/* =====================================================
               LEFT
           ===================================================== */}
           <div className="min-w-0">
-            {/* Context */}
-            <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-lg border border-blue-400/10 bg-blue-400/[0.06]">
-                <Sparkles
-                  size={11}
-                  strokeWidth={1.8}
-                  className="text-blue-400"
-                />
-              </div>
+            {/* Eyebrow */}
+            <div className="flex items-center gap-2.5">
+              <span className="h-px w-7 bg-blue-500/70" />
 
-              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-400/65">
-                Seu painel de evolução
+              <span
+                className="
+                  text-[9px]
+                  font-semibold
+                  uppercase
+                  tracking-[0.2em]
+                  text-blue-400/70
+                "
+              >
+                Seu treino de hoje
               </span>
             </div>
 
-            {/* Greeting */}
-            <div className="mt-3">
-              <h1 className="text-[28px] font-bold tracking-[-0.045em] text-white sm:text-[32px] lg:text-[36px]">
-                Olá, {firstName}
-                <span className="text-white/25">.</span>
+            {/* Main greeting */}
+            <div className="mt-4">
+              <h1
+                className="
+                  text-[30px]
+                  font-bold
+                  leading-[1.05]
+                  tracking-[-0.05em]
+                  text-white
+                  sm:text-[36px]
+                  lg:text-[40px]
+                "
+              >
+                Olá,{" "}
+                <span className="text-white">
+                  {firstName}
+                </span>
+                <span className="text-blue-500">.</span>
               </h1>
 
-              <p className="mt-1.5 max-w-xl text-[12px] leading-relaxed text-white/35 sm:text-[13px]">
-                Acompanhe seu desempenho, recuperação e evolução em um só
-                lugar.
+              <p
+                className="
+                  mt-2.5
+                  max-w-xl
+                  text-[13px]
+                  leading-relaxed
+                  text-white/35
+                  sm:text-[14px]
+                "
+              >
+                Vamos buscar mais uma evolução hoje.
               </p>
             </div>
 
-            {/* Date */}
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-white/30">
-                <CalendarDays size={13} strokeWidth={1.8} />
+            {/* Date / status */}
+            <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]" />
 
-                <span className="text-[10px] font-medium">
+                <span className="text-[10px] font-medium text-white/45 sm:text-[11px]">
                   {todayLabel}
                 </span>
               </div>
 
               <span className="h-1 w-1 rounded-full bg-white/10" />
 
-              <div className="flex items-center gap-2 text-white/30">
-                <Clock3 size={13} strokeWidth={1.8} />
-
-                <span className="text-[10px] font-medium">
-                  Seu progresso de hoje
-                </span>
-              </div>
+              <span className="text-[10px] font-medium text-white/25 sm:text-[11px]">
+                Seu progresso de hoje
+              </span>
             </div>
           </div>
 
@@ -132,14 +198,11 @@ export default function DashboardHeader({
               RIGHT
           ===================================================== */}
           <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* ===================================================
-                STREAK
-            =================================================== */}
+            {/* Streak */}
             <div
               className="
-                group
                 flex
-                min-w-[150px]
+                min-w-[155px]
                 items-center
                 gap-3
                 rounded-2xl
@@ -154,15 +217,37 @@ export default function DashboardHeader({
                 hover:bg-white/[0.04]
               "
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-blue-400/10 bg-blue-400/[0.06]">
-                <span className="text-sm text-blue-400">
-                  {streak}
-                </span>
+              <div
+                className="
+                  flex
+                  h-9
+                  w-9
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-xl
+                  border
+                  border-blue-400/[0.10]
+                  bg-blue-400/[0.06]
+                "
+              >
+                <Flame
+                  size={16}
+                  strokeWidth={1.8}
+                  className="text-blue-400"
+                />
               </div>
 
               <div className="min-w-0">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-sm font-bold tracking-[-0.03em] text-white">
+                  <span
+                    className="
+                      text-sm
+                      font-bold
+                      tracking-[-0.03em]
+                      text-white
+                    "
+                  >
                     {streak}
                   </span>
 
@@ -177,9 +262,7 @@ export default function DashboardHeader({
               </div>
             </div>
 
-            {/* ===================================================
-                NOTIFICATIONS
-            =================================================== */}
+            {/* Notifications */}
             <button
               type="button"
               aria-label="Notificações"
@@ -208,14 +291,24 @@ export default function DashboardHeader({
                 strokeWidth={1.8}
               />
 
-              <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.55)]" />
+              <span
+                className="
+                  absolute
+                  right-2.5
+                  top-2.5
+                  h-1.5
+                  w-1.5
+                  rounded-full
+                  bg-blue-400
+                  shadow-[0_0_8px_rgba(96,165,250,0.55)]
+                "
+              />
             </button>
 
-            {/* ===================================================
-                PROFILE
-            =================================================== */}
+            {/* Profile */}
             <button
               type="button"
+              aria-label="Abrir perfil"
               className="
                 group/profile
                 flex
@@ -242,7 +335,7 @@ export default function DashboardHeader({
                   justify-center
                   rounded-xl
                   border
-                  border-blue-400/10
+                  border-blue-400/[0.10]
                   bg-blue-500/[0.08]
                   text-[11px]
                   font-bold
@@ -254,6 +347,7 @@ export default function DashboardHeader({
 
               <ChevronDown
                 size={14}
+                strokeWidth={1.8}
                 className="
                   mr-1
                   text-white/25
