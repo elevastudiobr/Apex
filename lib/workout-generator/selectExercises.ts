@@ -1,317 +1,194 @@
 import {
-    Exercise,
-    GeneratedWorkout,
-    UserProfile,
-    WorkoutExercise,
-  } from "./types";
-  
-  import { rankExercises } from "./scoreExercises";
-  import {
-    calculateExerciseTime,
-    getAvailableTrainingTime,
-  } from "./calculateTime";
-  
-  import { calculateVolume } from "./calculateVolume";
-  
-  interface WorkoutStructure {
-    name: string;
-    muscles: string[];
-  }
-  
-  function getWorkoutStructures(
-    split: string,
-    trainingDays: number
-  ): WorkoutStructure[] {
-    if (split === "Full Body") {
-      return Array.from({ length: trainingDays }, (_, index) => ({
-        name: `Full Body ${String.fromCharCode(65 + index)}`,
-        muscles: [
-          "PEITO",
-          "COSTAS",
-          "QUADRÍCEPS",
-          "POSTERIORES",
-          "OMBROS",
-          "BÍCEPS",
-          "TRÍCEPS",
-        ],
-      }));
-    }
-  
-    if (split === "Full Body Força") {
-      return Array.from({ length: trainingDays }, (_, index) => ({
-        name: `Força ${String.fromCharCode(65 + index)}`,
-        muscles: [
-          "PEITO",
-          "COSTAS",
-          "QUADRÍCEPS",
-          "POSTERIORES",
-        ],
-      }));
-    }
-  
-    if (split === "Upper / Lower") {
-      return Array.from({ length: trainingDays }, (_, index) => {
-        const isUpper = index % 2 === 0;
-  
-        return {
-          name: isUpper
-            ? `Upper ${Math.floor(index / 2) + 1}`
-            : `Lower ${Math.floor(index / 2) + 1}`,
-  
-          muscles: isUpper
-            ? [
-                "PEITO",
-                "COSTAS",
-                "OMBROS",
-                "BÍCEPS",
-                "TRÍCEPS",
-              ]
-            : [
-                "QUADRÍCEPS",
-                "POSTERIORES",
-                "GLÚTEOS",
-                "PANTURRILHAS",
-              ],
-        };
-      });
-    }
-  
-    if (
-      split === "Upper / Lower + Especialização" ||
-      split === "Lower / Upper + Especialização"
-    ) {
-      const upper = [
-        "PEITO",
-        "COSTAS",
-        "OMBROS",
-        "BÍCEPS",
-        "TRÍCEPS",
-      ];
-  
-      const lower = [
-        "QUADRÍCEPS",
-        "POSTERIORES",
-        "GLÚTEOS",
-        "PANTURRILHAS",
-      ];
-  
-      const startsWithLower = split.startsWith("Lower");
-  
-      return Array.from({ length: trainingDays }, (_, index) => {
-        const isFirstType = index % 2 === 0;
-  
-        const muscles =
-          startsWithLower
-            ? isFirstType
-              ? lower
-              : upper
-            : isFirstType
-              ? upper
-              : lower;
-  
-        return {
-          name: isFirstType
-            ? `Especialização ${Math.floor(index / 2) + 1}`
-            : `Treino ${Math.floor(index / 2) + 1}`,
-          muscles,
-        };
-      });
-    }
-  
-    if (split === "Push / Pull / Legs") {
-      const structures: WorkoutStructure[] = [
-        {
-          name: "Push",
-          muscles: [
-            "PEITO",
-            "OMBROS",
-            "TRÍCEPS",
-          ],
-        },
-        {
-          name: "Pull",
-          muscles: [
-            "COSTAS",
-            "BÍCEPS",
-          ],
-        },
-        {
-          name: "Legs",
-          muscles: [
-            "QUADRÍCEPS",
-            "POSTERIORES",
-            "GLÚTEOS",
-            "PANTURRILHAS",
-          ],
-        },
-      ];
-  
-      return Array.from({ length: trainingDays }, (_, index) => {
-        const base = structures[index % 3];
-        const round = Math.floor(index / 3);
-  
-        return {
-          name:
-            round === 0
-              ? base.name
-              : `${base.name} ${round + 1}`,
-          muscles: base.muscles,
-        };
-      });
-    }
-  
-    return Array.from({ length: trainingDays }, (_, index) => ({
-      name: `Treino ${String.fromCharCode(65 + index)}`,
-      muscles: [
-        "PEITO",
-        "COSTAS",
-        "QUADRÍCEPS",
-        "POSTERIORES",
-      ],
-    }));
-  }
-  
-  export function selectExercises(
-    exercises: Exercise[],
-    profile: UserProfile,
-    split: string
-  ): GeneratedWorkout[] {
-    const trainingDays = Number(profile.training_days);
-  
-    const structures = getWorkoutStructures(
-      split,
-      trainingDays
-    );
-  
-    const volume = calculateVolume(profile);
-    const availableTime = getAvailableTrainingTime(profile);
-  
-    return structures.map((structure, workoutIndex) => {
-      const selected: WorkoutExercise[] = [];
-      const usedMuscles = new Set<string>();
-  
-      const ranked = rankExercises(
+  Exercise,
+  GeneratedWorkout,
+  UserProfile,
+} from "./types";
+
+import {
+  WeeklyPlan,
+  WeeklyTarget,
+} from "./planWeeklyTargets";
+
+import { rankExercises } from "./scoreExercises";
+import { calculateVolume } from "./calculateVolume";
+import {
+  calculateExerciseTime,
+  calculateWorkoutTime,
+} from "./calculateTime";
+
+function normalizeText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function calculateTargetScore(
+  exercise: Exercise,
+  target: WeeklyTarget,
+  profile: UserProfile
+): number {
+  return rankExercises(
+    [exercise],
+    profile,
+    [target.muscle],
+    target.regions,
+    target.movementPatterns
+  ).length > 0
+    ? 1
+    : 0;
+}
+
+function isSameExercise(
+  first: Exercise,
+  second: Exercise
+): boolean {
+  return first.id === second.id;
+}
+
+function getExerciseSets(
+  target: WeeklyTarget,
+  profile: UserProfile
+): number {
+  const volume = calculateVolume(profile);
+
+  const minimum = Math.max(
+    1,
+    target.weeklySetsMin
+  );
+
+  const maximum = Math.max(
+    minimum,
+    target.weeklySetsMax
+  );
+
+  const baseSets = volume.sets;
+
+  return Math.min(
+    maximum,
+    Math.max(minimum, baseSets)
+  );
+}
+
+function selectExercisesForTarget(
+  exercises: Exercise[],
+  target: WeeklyTarget,
+  profile: UserProfile,
+  selectedExercises: Exercise[]
+): Exercise[] {
+  const ranked = rankExercises(
+    exercises,
+    profile,
+    [target.muscle],
+    target.regions,
+    target.movementPatterns
+  );
+
+  const available = ranked.filter(
+    (exercise) =>
+      !selectedExercises.some((selected) =>
+        isSameExercise(selected, exercise)
+      )
+  );
+
+  const desiredExercises =
+    target.priority === "Alta"
+      ? 2
+      : target.priority === "Moderada"
+        ? 1
+        : 1;
+
+  return available.slice(
+    0,
+    Math.min(desiredExercises, available.length)
+  );
+}
+
+function buildWorkout(
+  exercises: Exercise[],
+  profile: UserProfile,
+  weeklyWorkout: WeeklyPlan["workouts"][number]
+): GeneratedWorkout {
+  const selectedExercises: Exercise[] = [];
+  const volume = calculateVolume(profile);
+
+  for (const target of weeklyWorkout.targets) {
+    const targetExercises =
+      selectExercisesForTarget(
         exercises,
+        target,
         profile,
-        structure.muscles
+        selectedExercises
       );
-  
-      for (const exercise of ranked) {
-        if (selected.length >= 8) {
-          break;
-        }
-  
-        if (!structure.muscles.includes(exercise.muscle_group)) {
-          continue;
-        }
-  
-        if (usedMuscles.has(exercise.muscle_group)) {
-          continue;
-        }
-  
-        const estimatedMinutes = calculateExerciseTime(
+
+    for (const exercise of targetExercises) {
+      selectedExercises.push(exercise);
+    }
+  }
+
+  const workoutExercises = selectedExercises.map(
+    (exercise, index) => {
+      const target = weeklyWorkout.targets.find(
+        (item) =>
+          normalizeText(item.muscle) ===
+          normalizeText(exercise.muscle_group)
+      );
+
+      const sets = target
+        ? getExerciseSets(target, profile)
+        : volume.sets;
+
+      const estimatedMinutes =
+        calculateExerciseTime(
           exercise,
-          volume.sets,
+          sets,
           volume.restSeconds
         );
-  
-        const currentTime = selected.reduce(
-          (total, item) =>
-            total + item.estimated_minutes,
-          0
-        );
-  
-        if (
-          currentTime + estimatedMinutes >
-          availableTime
-        ) {
-          continue;
-        }
-  
-        selected.push({
-          exercise,
-          exercise_order: selected.length + 1,
-          sets: volume.sets,
-          reps_min: volume.repsMin,
-          reps_max: volume.repsMax,
-          rest_seconds: volume.restSeconds,
-          estimated_minutes:
-            Math.round(estimatedMinutes * 10) / 10,
-          notes:
-            profile.goal === "Ganhar Força"
-              ? "Priorize execução controlada e progressão de carga."
-              : "Mantenha execução controlada e amplitude adequada.",
-        });
-  
-        usedMuscles.add(exercise.muscle_group);
-      }
-  
-      /*
-       * Caso o treino tenha poucos exercícios,
-       * adicionamos exercícios complementares.
-       */
-      if (selected.length < 4) {
-        for (const exercise of ranked) {
-          if (
-            selected.some(
-              (item) => item.exercise.id === exercise.id
-            )
-          ) {
-            continue;
-          }
-  
-          const estimatedMinutes = calculateExerciseTime(
-            exercise,
-            volume.sets,
-            volume.restSeconds
-          );
-  
-          const currentTime = selected.reduce(
-            (total, item) =>
-              total + item.estimated_minutes,
-            0
-          );
-  
-          if (
-            currentTime + estimatedMinutes >
-            availableTime
-          ) {
-            continue;
-          }
-  
-          selected.push({
-            exercise,
-            exercise_order: selected.length + 1,
-            sets: volume.sets,
-            reps_min: volume.repsMin,
-            reps_max: volume.repsMax,
-            rest_seconds: volume.restSeconds,
-            estimated_minutes:
-              Math.round(estimatedMinutes * 10) / 10,
-            notes:
-              "Exercício complementar para equilibrar o treino.",
-          });
-  
-          if (selected.length >= 4) {
-            break;
-          }
-        }
-      }
-  
-      const estimatedTotal = selected.reduce(
-        (total, item) =>
-          total + item.estimated_minutes,
-        0
-      );
-  
-      const workout: GeneratedWorkout = {
-        name: structure.name,
-        day_of_week: workoutIndex + 1,
-        workout_order: workoutIndex + 1,
-        estimated_minutes: Math.round(estimatedTotal),
-        exercises: selected,
+
+      return {
+        exercise,
+        exercise_order: index + 1,
+        sets,
+        reps_min: volume.repsMin,
+        reps_max: volume.repsMax,
+        rest_seconds: volume.restSeconds,
+        estimated_minutes: estimatedMinutes,
       };
-  
-      return workout;
-    });
-  }
+    }
+  );
+
+  return {
+    type: "workout",
+    name: weeklyWorkout.name,
+    day_of_week:
+      weeklyWorkout.workoutOrder as
+        | 1
+        | 2
+        | 3
+        | 4
+        | 5
+        | 6
+        | 7,
+    workout_order: weeklyWorkout.workoutOrder,
+    estimated_minutes: Math.ceil(
+      calculateWorkoutTime(workoutExercises)
+    ),
+    exercises: workoutExercises,
+  };
+}
+
+export function selectExercises(
+  exercises: Exercise[],
+  profile: UserProfile,
+  weeklyPlan: WeeklyPlan
+): GeneratedWorkout[] {
+  return weeklyPlan.workouts.map(
+    (weeklyWorkout) =>
+      buildWorkout(
+        exercises,
+        profile,
+        weeklyWorkout
+      )
+  );
+}
